@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+model Bouquet {
+  id            Int             @id @default(autoincrement())
+  bouquetCode   String          @unique
+  name          String
+  BouquetDetail BouquetDetail[]
+  BouquetOrder  BouquetOrder[]
+}
+
+model BouquetDetail {
+  id             Int     @id @default(autoincrement())
+  bouquetId      Int
+  flowerId       Int
+  flowerQuantity Int
+  Bouquet        Bouquet @relation(fields: [bouquetId], references: [id])
+  Flower         Flower  @relation(fields: [flowerId], references: [id])
+
+  @@index([bouquetId], map: "BouquetDetail_bouquetId_fkey")
+  @@index([flowerId], map: "BouquetDetail_flowerId_fkey")
+}
+
+model BouquetOrder {
+  id                   Int                   @id @default(autoincrement())
+  customerId           Int
+  senderName           String
+  bouquetId            Int
+  deliveryDate         DateTime              @db.Date
+  deliveryAddress1     String
+  deliveryAddress2     String?
+  deliveryMessage      String?
+  totalAmount          Int
+  createdAt            DateTime              @default(now())
+  Bouquet              Bouquet               @relation(fields: [bouquetId], references: [id])
+  Customer             Customer              @relation(fields: [customerId], references: [id])
+  BouquetOrderShipment BouquetOrderShipment?
+
+  @@index([bouquetId], map: "BouquetOrder_bouquetId_fkey")
+  @@index([customerId], map: "BouquetOrder_customerId_fkey")
+}
+
+model BouquetOrderShipment {
+  bouquetOrderId             Int                          @id
+  shippedAt                  DateTime                     @default(now())
+  BouquetOrder               BouquetOrder                 @relation(fields: [bouquetOrderId], references: [id])
+  BouquetOrderShipmentDetail BouquetOrderShipmentDetail[]
+}
+
+model BouquetOrderShipmentDetail {
+  id                   Int                  @id @default(autoincrement())
+  orderShipmentId      Int
+  inventoryId          Int
+  shippedQuantity      Int
+  FlowerInventory      FlowerInventory      @relation(fields: [inventoryId], references: [id])
+  BouquetOrderShipment BouquetOrderShipment @relation(fields: [orderShipmentId], references: [bouquetOrderId])
+
+  @@index([inventoryId], map: "BouquetOrderShipmentDetail_inventoryId_fkey")
+  @@index([orderShipmentId], map: "BouquetOrderShipmentDetail_orderShipmentId_fkey")
+}
+
+model Customer {
+  id                   Int                @id @default(autoincrement())
+  name                 String
+  customerCredentialId Int                @unique
+  CustomerCredential   CustomerCredential @relation(fields: [customerCredentialId], references: [id])
+  BouquetOrder         BouquetOrder[]
+}
+
+model CustomerCredential {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  password        String
+  isEmailVerified Boolean
+  Customer        Customer?
+}
+
+model Flower {
+  id                Int                 @id @default(autoincrement())
+  flowerCode        String              @unique
+  name              String
+  deliveryDays      Int
+  purchaseQuantity  Int
+  maintanableDays   Int
+  BouquetDetail     BouquetDetail[]
+  FlowerInventory   FlowerInventory[]
+  FlowerOrderDetail FlowerOrderDetail[]
+}
+
+model FlowerDisposal {
+  id                Int             @id @default(autoincrement())
+  flowerInventoryId Int
+  disposedCount     Int
+  disposedAt        DateTime        @default(now())
+  FlowerInventory   FlowerInventory @relation(fields: [flowerInventoryId], references: [id])
+
+  @@index([flowerInventoryId], map: "FlowerDisposal_flowerInventoryId_fkey")
+}
+
+model FlowerInventory {
+  id                         Int                          @id @default(autoincrement())
+  flowerId                   Int
+  arrivalDate                DateTime                     @db.Date
+  currentQuantity            Int                          @db.UnsignedInt
+  Flower                     Flower                       @relation(fields: [flowerId], references: [id])
+  BouquetOrderShipmentDetail BouquetOrderShipmentDetail[]
+  FlowerDisposal             FlowerDisposal[]
+  FlowerOrderDetailArrival   FlowerOrderDetailArrival[]
+
+  @@unique([flowerId, arrivalDate])
+}
+
+model FlowerOrder {
+  id                 Int                 @id @default(autoincrement())
+  deliveryDate       DateTime            @db.Date
+  purchaseNumber     String
+  FlowerOrderArrival FlowerOrderArrival?
+  FlowerOrderDetail  FlowerOrderDetail[]
+}
+
+model FlowerOrderArrival {
+  flowerOrderId            Int                        @id
+  arrivedAt                DateTime
+  FlowerOrder              FlowerOrder                @relation(fields: [flowerOrderId], references: [id])
+  FlowerOrderDetailArrival FlowerOrderDetailArrival[]
+}
+
+model FlowerOrderDetail {
+  id                       Int                       @id @default(autoincrement())
+  flowerOrderId            Int
+  flowerId                 Int
+  orderQuantity            Int
+  Flower                   Flower                    @relation(fields: [flowerId], references: [id])
+  FlowerOrder              FlowerOrder               @relation(fields: [flowerOrderId], references: [id])
+  FlowerOrderDetailArrival FlowerOrderDetailArrival?
+
+  @@index([flowerId], map: "FlowerOrderDetail_flowerId_fkey")
+  @@index([flowerOrderId], map: "FlowerOrderDetail_flowerOrderId_fkey")
+}
+
+model FlowerOrderDetailArrival {
+  id                   Int                @id @default(autoincrement())
+  flowerOrderArrivalId Int
+  flowerOrderDetailId  Int                @unique
+  arrivedQuantity      Int
+  flowerInventoryId    Int
+  FlowerInventory      FlowerInventory    @relation(fields: [flowerInventoryId], references: [id])
+  FlowerOrderArrival   FlowerOrderArrival @relation(fields: [flowerOrderArrivalId], references: [flowerOrderId])
+  FlowerOrderDetail    FlowerOrderDetail  @relation(fields: [flowerOrderDetailId], references: [id])
+
+  @@index([flowerInventoryId], map: "FlowerOrderDetailArrival_flowerInventoryId_fkey")
+  @@index([flowerOrderArrivalId], map: "FlowerOrderDetailArrival_flowerOrderArrivalId_fkey")
+}
